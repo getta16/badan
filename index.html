@@ -620,18 +620,17 @@ function toggleMyLocation() {
             }).addTo(map);
 
             userLocationMarker.bindPopup(`
-                <div style="font-family:'Prompt',sans-serif;min-width:210px;padding:0;">
-                    <div style="background:#1565C0;color:white;padding:10px 14px;margin:-13px -20px 12px;border-radius:4px 4px 0 0;font-weight:700;font-size:14px;letter-spacing:0.3px;">
+                <div style="font-family:'Prompt',sans-serif;min-width:200px;padding:0;">
+                    <div style="background:#1565C0;color:white;padding:0px 14px;margin:-13px -20px 12px;border-radius:4px 4px 0 0;font-weight:700;font-size:14px;letter-spacing:0.3px;">
                         ตำแหน่งของคุณ
                     </div>
                     <div style="padding:0 2px;">
-                        <div style="font-size:13px;color:#333;margin-bottom:5px;">ละติจูด: <strong>${userLocation.lat.toFixed(6)}</strong></div>
-                        <div style="font-size:13px;color:#333;margin-bottom:12px;">ลองจิจูด: <strong>${userLocation.lng.toFixed(6)}</strong></div>
-                        <div style="background:#E3F2FD;border-left:4px solid #1565C0;border-radius:4px;padding:8px 12px;">
-                            <div style="font-size:11px;color:#555;margin-bottom:6px;">แหล่งน้ำในรัศมี 1 กม.</div>
+                        <div style="font-size:13px;color:#666;margin-bottom:5px;">ละติจูด: <strong>${userLocation.lat.toFixed(6)}</strong></div>
+                        <div style="font-size:13px;color:#666;margin-bottom:12px;">ลองจิจูด: <strong>${userLocation.lng.toFixed(6)}</strong></div>
+                        <div style="background:#E3F2FD;border-left:3px solid #006FBF;border-radius:4px;padding:8px 12px;">
+                            <div style="font-size:12px;color:#555;margin-bottom:6px;">บ่อน้ำบาดาลในรัศมี 1 กม.</div>
                             <div style="display:flex;align-items:center;gap:8px;">
-                                <div style="background:#1565C0;color:white;width:28px;height:28px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:700;flex-shrink:0;">${nearbyCount}</div>
-                                <span style="font-size:13px;color:#333;font-weight:600;">แห่ง</span>
+                                <div style="font-size:22px;font-weight:700;color:#006FBF;">${nearbyCount} <span style="font-size:13px;font-weight:400;">แห่ง</span></div>
                             </div>
                         </div>
                     </div>
