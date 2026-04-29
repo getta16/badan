@@ -620,16 +620,20 @@ function toggleMyLocation() {
             }).addTo(map);
 
             userLocationMarker.bindPopup(`
-                <div style="font-family:'Prompt',sans-serif;min-width:200px;">
-                    <div style="background:#004D8C;color:white;padding:10px 14px;margin:-13px -20px 12px;border-radius:4px 4px 0 0;font-weight:700;font-size:14px;">
-                        📍 ตำแหน่งของคุณ
+                <div style="font-family:'Prompt',sans-serif;min-width:210px;padding:0;">
+                    <div style="background:#1565C0;color:white;padding:10px 14px;margin:-13px -20px 12px;border-radius:4px 4px 0 0;font-weight:700;font-size:14px;letter-spacing:0.3px;">
+                        ตำแหน่งของคุณ
                     </div>
-                    <div style="font-size:13px;color:#555;margin-bottom:4px;">ละติจูด: <strong style="color:#222;">${userLocation.lat.toFixed(6)}</strong></div>
-                    <div style="font-size:13px;color:#555;margin-bottom:12px;">ลองจิจูด: <strong style="color:#222;">${userLocation.lng.toFixed(6)}</strong></div>
-                    <div style="background:linear-gradient(135deg,#006FBF,#004D8C);color:white;border-radius:8px;padding:10px 14px;text-align:center;">
-                        <div style="font-size:11px;opacity:0.9;margin-bottom:4px;">บ่อน้ำในระยะ 1 กม.</div>
-                        <div style="font-size:30px;font-weight:800;line-height:1;">${nearbyCount}</div>
-                        <div style="font-size:11px;opacity:0.85;margin-top:4px;">บ่อ</div>
+                    <div style="padding:0 2px;">
+                        <div style="font-size:13px;color:#333;margin-bottom:5px;">ละติจูด: <strong>${userLocation.lat.toFixed(6)}</strong></div>
+                        <div style="font-size:13px;color:#333;margin-bottom:12px;">ลองจิจูด: <strong>${userLocation.lng.toFixed(6)}</strong></div>
+                        <div style="background:#E3F2FD;border-left:4px solid #1565C0;border-radius:4px;padding:8px 12px;">
+                            <div style="font-size:11px;color:#555;margin-bottom:6px;">แหล่งน้ำในรัศมี 1 กม.</div>
+                            <div style="display:flex;align-items:center;gap:8px;">
+                                <div style="background:#1565C0;color:white;width:28px;height:28px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:700;flex-shrink:0;">${nearbyCount}</div>
+                                <span style="font-size:13px;color:#333;font-weight:600;">แห่ง</span>
+                            </div>
+                        </div>
                     </div>
                 </div>
             `, { maxWidth: 260 }).openPopup();
