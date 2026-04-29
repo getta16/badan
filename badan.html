@@ -1,0 +1,965 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>แผนที่บ่อน้ำบาดาล - จังหวัดกำแพงเพชร</title>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.0/chart.umd.js"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Prompt:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --primary: #006FBF;
+            --primary-mid: #004D8C;
+            --accent: #0088CC;
+            --accent-light: #B3E5FC;
+            --private: #E8793A;
+            --state: #793AE8;
+            --bg: #F5F7FA;
+            --surface: #FFFFFF;
+            --text: #1a2740;
+            --text-muted: #6b7a99;
+            --border: #dde3ee;
+            --shadow: rgba(0, 111, 191, 0.12);
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: 'Prompt', sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            height: 100vh;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+        }
+
+        /* ─── HEADER ─── */
+        .header {
+            background: white;
+            padding: 0 30px;
+            height: 68px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            flex-shrink: 0;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+            z-index: 10;
+        }
+
+        .header h1 {
+            font-size: 22px;
+            color: var(--primary);
+            font-weight: 700;
+            letter-spacing: 0.2px;
+        }
+
+        /* ─── FILTERS ─── */
+        .filters {
+            display: flex;
+            gap: 12px;
+            align-items: flex-end;
+        }
+
+        .filter-group {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+
+        .filter-label {
+            font-size: 13px;
+            color: #555;
+            font-weight: 600;
+        }
+
+        .filters select {
+            padding: 10px 16px;
+            border: 2px solid #ddd;
+            border-radius: 8px;
+            font-size: 14px;
+            cursor: pointer;
+            background: white;
+            transition: all 0.2s;
+            min-width: 180px;
+            font-weight: 400;
+            font-family: 'Prompt', sans-serif;
+        }
+
+        .filters select:hover:not(:disabled) { border-color: var(--primary); }
+        .filters select:focus { outline: none; border-color: var(--primary); box-shadow: 0 0 0 3px rgba(0,111,191,0.1); }
+        .filters select:disabled { background: #f5f5f5; color: #999; cursor: not-allowed; }
+
+        /* ─── LAYOUT ─── */
+        .container {
+            display: grid;
+            grid-template-columns: 1fr 420px;
+            height: calc(100vh - 68px);
+            overflow: hidden;
+        }
+
+        /* ─── MAP ─── */
+        .map-wrap { position: relative; }
+        #map { width: 100%; height: 100%; }
+
+        /* ─── SIDEBAR ─── */
+        .sidebar {
+            background: var(--bg);
+            overflow-y: auto;
+            padding: 18px;
+            display: flex;
+            flex-direction: column;
+            gap: 14px;
+            border-left: 1px solid var(--border);
+        }
+
+        .sidebar::-webkit-scrollbar { width: 5px; }
+        .sidebar::-webkit-scrollbar-track { background: transparent; }
+        .sidebar::-webkit-scrollbar-thumb { background: var(--accent); border-radius: 3px; }
+
+        /* ─── TOGGLE BUTTONS ─── */
+        .source-toggle-sidebar {
+            display: flex;
+            gap: 8px;
+        }
+
+        .toggle-btn {
+            flex: 1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 7px;
+            padding: 10px 14px;
+            border-radius: 8px;
+            border: 2px solid transparent;
+            font-size: 13px;
+            font-family: 'Prompt', sans-serif;
+            font-weight: 700;
+            cursor: pointer;
+            transition: all 0.2s;
+            background: white;
+        }
+
+        .toggle-btn .dot { width: 10px; height: 10px; border-radius: 50%; }
+
+        .toggle-btn.private { border-color: var(--private); color: var(--private); }
+        .toggle-btn.private.active { background: var(--private); color: white; }
+        .toggle-btn.state { border-color: var(--state); color: var(--state); }
+        .toggle-btn.state.active { background: var(--state); color: white; }
+        .toggle-btn.private .dot { background: var(--private); }
+        .toggle-btn.state .dot { background: var(--state); }
+        .toggle-btn.private.active .dot,
+        .toggle-btn.state.active .dot { background: white; }
+
+        /* ─── STAT CARDS ─── */
+        .stat-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr 1fr;
+            gap: 10px;
+        }
+
+        .stat-card {
+            background: var(--surface);
+            border-radius: 12px;
+            padding: 16px 10px;
+            text-align: center;
+            box-shadow: 0 2px 8px var(--shadow);
+            border: 1px solid var(--border);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .stat-card::before {
+            content: '';
+            position: absolute;
+            top: 0; left: 0; right: 0;
+            height: 3px;
+        }
+
+        .stat-card.total::before { background: var(--primary); }
+        .stat-card.private-card::before { background: var(--private); }
+        .stat-card.state-card::before { background: var(--state); }
+
+        .stat-number {
+            font-size: 30px;
+            font-weight: 800;
+            line-height: 1;
+            margin-bottom: 4px;
+            font-family: 'Prompt', sans-serif;
+        }
+
+        .stat-card.total .stat-number { color: var(--primary); }
+        .stat-card.private-card .stat-number { color: var(--private); }
+        .stat-card.state-card .stat-number { color: var(--state); }
+
+        .stat-sublabel {
+            font-size: 10px;
+            color: var(--text-muted);
+            font-weight: 600;
+            line-height: 1.3;
+        }
+
+        /* ─── CARD ─── */
+        .card {
+            background: var(--surface);
+            border-radius: 12px;
+            padding: 16px;
+            box-shadow: 0 2px 8px var(--shadow);
+            border: 1px solid var(--border);
+        }
+
+        .card-title {
+            font-size: 13px;
+            font-weight: 700;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 0.8px;
+            margin-bottom: 14px;
+            display: flex;
+            align-items: center;
+            gap: 7px;
+        }
+
+        .card-title::before {
+            content: '';
+            display: block;
+            width: 3px; height: 14px;
+            background: var(--primary);
+            border-radius: 2px;
+            flex-shrink: 0;
+        }
+
+        /* ─── TYPE LIST ─── */
+        .type-row {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 9px 12px;
+            border-radius: 8px;
+            border: 1.5px solid transparent;
+            cursor: pointer;
+            transition: background 0.18s, border-color 0.18s;
+            margin-bottom: 4px;
+        }
+
+        .type-row:last-child { margin-bottom: 0; }
+        .type-row:hover { background: #EBF4FF; border-color: #90CAF9; }
+        .type-row.active { background: #E6F0FF; border-color: var(--primary); }
+        .type-row.active .type-count {
+            background: var(--primary);
+            color: white;
+            padding: 2px 9px;
+            border-radius: 10px;
+        }
+
+        .type-name {
+            font-size: 13px;
+            font-weight: 600;
+            color: var(--text);
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .type-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--primary); flex-shrink: 0; }
+
+        .type-count {
+            font-size: 13px;
+            font-weight: 800;
+            color: var(--primary);
+            min-width: 28px;
+            text-align: right;
+        }
+
+        /* ─── CHART ─── */
+        .chart-wrap { height: 220px; position: relative; }
+
+        /* ─── MAP LEGEND ─── */
+        .map-legend {
+            position: absolute;
+            bottom: 28px;
+            left: 10px;
+            z-index: 800;
+            background: white;
+            border-radius: 10px;
+            padding: 12px 16px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.15);
+            font-size: 13px;
+            min-width: 170px;
+            font-family: 'Prompt', sans-serif;
+        }
+
+        .legend-title {
+            font-weight: 700;
+            color: var(--text);
+            margin-bottom: 10px;
+            font-size: 12px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .legend-item { display: flex; align-items: center; gap: 9px; margin-bottom: 7px; }
+        .legend-item:last-child { margin-bottom: 0; }
+
+        .legend-marker {
+            width: 14px; height: 14px;
+            border-radius: 50%;
+            border: 2px solid rgba(0,0,0,0.2);
+            flex-shrink: 0;
+        }
+
+        .legend-text { color: #444; font-weight: 600; font-size: 12px; }
+
+        /* ─── LOCATION BUTTON ─── */
+        .location-btn {
+            position: absolute;
+            top: 80px;
+            right: 10px;
+            z-index: 1000;
+            background: white;
+            border: none;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 1px 4px rgba(0,0,0,0.3);
+            transition: background 0.2s, box-shadow 0.2s;
+        }
+
+        .location-btn:hover { background: #f5f5f5; box-shadow: 0 2px 8px rgba(0,0,0,0.25); }
+        .location-btn.active { background: #EBF4FF; }
+
+        /* ─── LINK BUTTON ─── */
+        .link-btn {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            background: linear-gradient(135deg, var(--primary) 0%, var(--primary-mid) 100%);
+            color: white;
+            text-decoration: none;
+            padding: 14px;
+            border-radius: 10px;
+            font-size: 14px;
+            font-weight: 700;
+            font-family: 'Prompt', sans-serif;
+            box-shadow: 0 3px 10px var(--shadow);
+            transition: all 0.25s;
+        }
+
+        .link-btn:hover { transform: translateY(-2px); box-shadow: 0 6px 16px rgba(0,111,191,0.4); }
+
+        /* ─── LOADING ─── */
+        .loading-overlay {
+            position: absolute;
+            inset: 0;
+            background: rgba(255,255,255,0.85);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 900;
+            font-size: 16px;
+            font-weight: 600;
+            color: var(--primary);
+            gap: 12px;
+            font-family: 'Prompt', sans-serif;
+        }
+
+        .spinner {
+            width: 22px; height: 22px;
+            border: 3px solid rgba(0,111,191,0.2);
+            border-top-color: var(--primary);
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+        }
+
+        @keyframes spin { to { transform: rotate(360deg); } }
+
+        .empty-msg { text-align: center; color: var(--text-muted); font-size: 13px; padding: 16px 0; }
+
+        .leaflet-control-layers {
+            border-radius: 10px !important;
+            border: none !important;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.15) !important;
+        }
+
+        @media (max-width: 1024px) { .container { grid-template-columns: 1fr 340px; } }
+
+        @media (max-width: 768px) {
+            .header { flex-direction: column; height: auto; gap: 10px; align-items: flex-start; padding: 12px 20px; }
+            .container { grid-template-columns: 1fr; grid-template-rows: 50vh 1fr; height: auto; overflow: auto; }
+        }
+    </style>
+</head>
+<body>
+
+<!-- HEADER -->
+<div class="header">
+    <h1>แผนที่บ่อน้ำบาดาล - จังหวัดกำแพงเพชร</h1>
+    <div class="filters">
+        <div class="filter-group">
+            <label class="filter-label">อำเภอ</label>
+            <select id="amphoeSelect">
+                <option value="">ทั้งหมด</option>
+                <option value="คลองลาน">คลองลาน</option>
+                <option value="โกสัมพีนคร">โกสัมพีนคร</option>
+                <option value="ปางศิลาทอง">ปางศิลาทอง</option>
+                <option value="คลองขลุง">คลองขลุง</option>
+                <option value="ขาณุวรลักษบุรี">ขาณุวรลักษบุรี</option>
+                <option value="เมืองกำแพงเพชร">เมืองกำแพงเพชร</option>
+                <option value="ไทรงาม">ไทรงาม</option>
+                <option value="ทรายทองวัฒนา">ทรายทองวัฒนา</option>
+                <option value="บึงสามัคคี">บึงสามัคคี</option>
+                <option value="พรานกระต่าย">พรานกระต่าย</option>
+                <option value="ลานกระบือ">ลานกระบือ</option>
+            </select>
+        </div>
+        <div class="filter-group">
+            <label class="filter-label">ตำบล</label>
+            <select id="tambonSelect" disabled>
+                <option value="">กรุณาเลือกอำเภอก่อน</option>
+            </select>
+        </div>
+    </div>
+</div>
+
+<div class="container">
+    <div class="map-wrap">
+        <div id="map"></div>
+        <button class="location-btn" id="locateBtn" onclick="toggleMyLocation()" title="แสดงตำแหน่งของฉัน">
+            <svg id="locateIcon" xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="#5F6368">
+                <path d="M12 8c-2.21 0-4 1.79-4 4s1.79 4 4 4 4-1.79 4-4-1.79-4-4-4zm8.94 3c-.46-4.17-3.77-7.48-7.94-7.94V1h-2v2.06C6.83 3.52 3.52 6.83 3.06 11H1v2h2.06c.46 4.17 3.77 7.48 7.94 7.94V23h2v-2.06c4.17-.46 7.48-3.77 7.94-7.94H23v-2h-2.06zM12 19c-3.87 0-7-3.13-7-7s3.13-7 7-7 7 3.13 7 7-3.13 7-7 7z"/>
+            </svg>
+        </button>
+        <div class="map-legend">
+            <div class="legend-title">ประเภทบ่อ</div>
+            <div class="legend-item">
+                <div class="legend-marker" style="background:#E8793A;"></div>
+                <span class="legend-text">บ่อบาดาลภาคเอกชน</span>
+            </div>
+            <div class="legend-item">
+                <div class="legend-marker" style="background:#793AE8;"></div>
+                <span class="legend-text">บ่อบาดาลภาครัฐ</span>
+            </div>
+        </div>
+    </div>
+
+    <div class="sidebar">
+        <!-- TOGGLE BUTTONS -->
+        <div class="source-toggle-sidebar">
+            <button class="toggle-btn private active" id="togglePrivate" onclick="toggleSource('private')">
+                <span class="dot"></span> บ่อบาดาลภาคเอกชน
+            </button>
+            <button class="toggle-btn state active" id="toggleState" onclick="toggleSource('state')">
+                <span class="dot"></span> บ่อบาดาลภาครัฐ
+            </button>
+        </div>
+
+        <!-- STAT ROW -->
+        <div class="stat-row">
+            <div class="stat-card total">
+                <div class="stat-number" id="totalCount">0</div>
+                <div class="stat-sublabel">บ่อบาดาลทั้งหมด</div>
+            </div>
+            <div class="stat-card private-card">
+                <div class="stat-number" id="privateCount">0</div>
+                <div class="stat-sublabel">บ่อบาดาลภาคเอกชน</div>
+            </div>
+            <div class="stat-card state-card">
+                <div class="stat-number" id="stateCount">0</div>
+                <div class="stat-sublabel">บ่อบาดาลภาครัฐ</div>
+            </div>
+        </div>
+
+        <!-- TYPE BREAKDOWN -->
+        <div class="card">
+            <div class="card-title">จำนวนบ่อตามการใช้งาน</div>
+            <div id="typeList"><div class="empty-msg">กำลังโหลดข้อมูล...</div></div>
+        </div>
+
+        <!-- CHART: COUNT -->
+        <div class="card">
+            <div class="card-title" id="chartTitle">จำนวนบ่อแยกตามอำเภอ</div>
+            <div class="chart-wrap">
+                <canvas id="mainChart"></canvas>
+            </div>
+        </div>
+
+        <!-- CHART: WATER VOLUME -->
+        <div class="card">
+            <div class="card-title" id="volumeChartTitle">ปริมาณน้ำ (ลบ.ม./วัน) แยกตามอำเภอ</div>
+            <div class="chart-wrap">
+                <canvas id="volumeChart"></canvas>
+            </div>
+        </div>
+
+        <!-- LINK -->
+        <a href="https://iwasam.eng.kps.ku.ac.th/flow/itambon/water-source/" target="_blank" class="link-btn">
+            🔗 ข้อมูลแหล่งน้ำผิวดิน 32 ตำบล
+        </a>
+    </div>
+</div>
+
+<script>
+// ─── MAP INIT ───────────────────────────────────────────────
+const map = L.map('map').setView([16.240027, 99.450809], 10);
+
+const osmLayer = L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    maxZoom: 19, attribution: '© OpenStreetMap'
+});
+const topoLayer = L.tileLayer('https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png', {
+    maxZoom: 17, attribution: '© OpenStreetMap'
+});
+const satelliteLayer = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
+    maxZoom: 19, attribution: '© Esri'
+});
+
+osmLayer.addTo(map);
+
+L.control.layers({
+    "แผนที่มาตรฐาน": osmLayer,
+    "แผนที่ภูมิประเทศ": topoLayer,
+    "ภาพดาวเทียม": satelliteLayer
+}, {}, { position: 'topright', collapsed: true }).addTo(map);
+
+// ─── STATE ───────────────────────────────────────────────────
+let allFeatures = [];
+let tambonsByAmphoe = {};
+let chartInstance = null;
+let volumeChartInstance = null;
+let showPrivate = true;
+let showState = true;
+let activeTypeFilter = null;
+let markerLayer = L.layerGroup().addTo(map);
+let userLocationMarker = null;
+let bufferCircle = null;
+let userLocation = null;
+let locationActive = false;
+
+const PRIVATE_COLOR = '#E8793A';
+const STATE_COLOR   = '#793AE8';
+
+// ─── HELPERS ────────────────────────────────────────────────
+function getUsageCategory(feature) {
+    const usageType = (feature.properties.Types || feature.properties.Class || '').toLowerCase();
+    if (usageType.includes('เกษตร')) return 'เกษตร';
+    return 'อุปโภค-บริโภค';
+}
+
+function buildPopup(props, sourceType) {
+    const srcLabel = sourceType === 'private' ? '🏭 บ่อภาคเอกชน' : '🏛️ บ่อภาครัฐ';
+    const fields = [
+        ['water_name', 'ชื่อ/สถานที่'],
+        ['Types', 'การใช้งาน'],
+        ['Amphoe', 'อำเภอ'],
+        ['Tambon', 'ตำบล'],
+        ['village_no', 'หมู่ที่'],
+        ['Deepdrill', 'ความลึก (ม.)'],
+        ['quantity', 'ปริมาณน้ำ (ลบ.ม./วัน)'],
+    ];
+    let rows = fields
+        .filter(([k]) => props[k] && props[k] !== 0 && props[k] !== '0' && props[k] !== '0.00')
+        .map(([k, label]) => `<tr><td style="color:#666;padding:3px 8px 3px 0;font-size:13px">${label}</td><td style="font-weight:700;font-size:13px">${props[k]}</td></tr>`)
+        .join('');
+
+    return `<div style="font-family:'Prompt',Arial,sans-serif;min-width:210px">
+        <div style="background:#004D8C;color:white;padding:10px 14px;margin:-13px -20px 12px;border-radius:4px 4px 0 0;font-weight:700;font-size:14px">
+            💧 ข้อมูลบ่อน้ำใต้ดิน
+        </div>
+        <div style="font-size:12px;color:#888;margin-bottom:8px">${srcLabel}</div>
+        <table style="border-collapse:collapse;width:100%">${rows || '<tr><td colspan="2" style="color:#aaa;font-size:12px">ไม่มีข้อมูลเพิ่มเติม</td></tr>'}</table>
+    </div>`;
+}
+
+// ─── LOCATION TOGGLE ────────────────────────────────────────
+const locateIconSVG = (color) => `<svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="${color}"><path d="M12 8c-2.21 0-4 1.79-4 4s1.79 4 4 4 4-1.79 4-4-1.79-4-4-4zm8.94 3c-.46-4.17-3.77-7.48-7.94-7.94V1h-2v2.06C6.83 3.52 3.52 6.83 3.06 11H1v2h2.06c.46 4.17 3.77 7.48 7.94 7.94V23h2v-2.06c4.17-.46 7.48-3.77 7.94-7.94H23v-2h-2.06zM12 19c-3.87 0-7-3.13-7-7s3.13-7 7-7 7 3.13 7 7-3.13 7-7 7z"/></svg>`;
+
+function toggleMyLocation() {
+    const btn = document.getElementById('locateBtn');
+
+    if (locationActive) {
+        if (userLocationMarker) { map.removeLayer(userLocationMarker); userLocationMarker = null; }
+        if (bufferCircle) { map.removeLayer(bufferCircle); bufferCircle = null; }
+        userLocation = null;
+        locationActive = false;
+        btn.classList.remove('active');
+        btn.innerHTML = locateIconSVG('#5F6368');
+        return;
+    }
+
+    if (!navigator.geolocation) {
+        alert('เบราว์เซอร์ของคุณไม่รองรับการระบุตำแหน่ง');
+        return;
+    }
+
+    btn.innerHTML = locateIconSVG('#BDBDBD');
+
+    navigator.geolocation.getCurrentPosition(
+        (position) => {
+            userLocation = { lat: position.coords.latitude, lng: position.coords.longitude };
+
+            const nearbyCount = allFeatures.filter(f => {
+                const [lng, lat] = f.geometry.coordinates;
+                return map.distance([userLocation.lat, userLocation.lng], [lat, lng]) <= 1000;
+            }).length;
+
+            userLocationMarker = L.marker([userLocation.lat, userLocation.lng], {
+                icon: L.divIcon({
+                    className: '',
+                    html: '<div style="background:#1A73E8;width:16px;height:16px;border-radius:50%;border:3px solid white;box-shadow:0 0 10px rgba(26,115,232,0.5);"></div>',
+                    iconSize: [22, 22],
+                    iconAnchor: [11, 11]
+                }),
+                zIndexOffset: 1000
+            }).addTo(map);
+
+            userLocationMarker.bindPopup(`
+                <div style="font-family:'Prompt',sans-serif;min-width:200px;">
+                    <div style="background:#004D8C;color:white;padding:10px 14px;margin:-13px -20px 12px;border-radius:4px 4px 0 0;font-weight:700;font-size:14px;">
+                        📍 ตำแหน่งของคุณ
+                    </div>
+                    <div style="font-size:13px;color:#555;margin-bottom:4px;">ละติจูด: <strong style="color:#222;">${userLocation.lat.toFixed(6)}</strong></div>
+                    <div style="font-size:13px;color:#555;margin-bottom:12px;">ลองจิจูด: <strong style="color:#222;">${userLocation.lng.toFixed(6)}</strong></div>
+                    <div style="background:linear-gradient(135deg,#006FBF,#004D8C);color:white;border-radius:8px;padding:10px 14px;text-align:center;">
+                        <div style="font-size:11px;opacity:0.9;margin-bottom:4px;">บ่อน้ำในระยะ 1 กม.</div>
+                        <div style="font-size:30px;font-weight:800;line-height:1;">${nearbyCount}</div>
+                        <div style="font-size:11px;opacity:0.85;margin-top:4px;">บ่อ</div>
+                    </div>
+                </div>
+            `, { maxWidth: 260 }).openPopup();
+
+            bufferCircle = L.circle([userLocation.lat, userLocation.lng], {
+                radius: 1000,
+                color: '#1A73E8',
+                fillColor: '#1A73E8',
+                fillOpacity: 0.08,
+                weight: 2,
+                dashArray: '6, 10',
+                interactive: false
+            }).addTo(map);
+
+            map.setView([userLocation.lat, userLocation.lng], 13);
+            locationActive = true;
+            btn.innerHTML = locateIconSVG('#1A73E8');
+            btn.classList.add('active');
+        },
+        (error) => {
+            btn.innerHTML = locateIconSVG('#5F6368');
+            const msgs = {
+                [error.PERMISSION_DENIED]: 'คุณไม่อนุญาตให้เข้าถึงตำแหน่ง',
+                [error.POSITION_UNAVAILABLE]: 'ไม่สามารถระบุตำแหน่งได้',
+                [error.TIMEOUT]: 'หมดเวลาในการระบุตำแหน่ง'
+            };
+            alert(msgs[error.code] || 'ไม่สามารถระบุตำแหน่งได้');
+        },
+        { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
+    );
+}
+
+// ─── TOGGLE SOURCE ───────────────────────────────────────────
+function toggleSource(type) {
+    if (type === 'private') {
+        showPrivate = !showPrivate;
+        document.getElementById('togglePrivate').classList.toggle('active', showPrivate);
+    } else {
+        showState = !showState;
+        document.getElementById('toggleState').classList.toggle('active', showState);
+    }
+    renderFiltered();
+}
+
+// ─── FILTER & RENDER ─────────────────────────────────────────
+function getFiltered() {
+    const amphoe = document.getElementById('amphoeSelect').value;
+    const tambon = document.getElementById('tambonSelect').value;
+
+    return allFeatures.filter(f => {
+        const p = f.properties;
+        if (f._sourceType === 'private' && !showPrivate) return false;
+        if (f._sourceType === 'state'   && !showState)   return false;
+        if (tambon && p.Tambon  !== tambon)  return false;
+        if (amphoe && !tambon && p.Amphoe !== amphoe) return false;
+        if (activeTypeFilter && getUsageCategory(f) !== activeTypeFilter) return false;
+        return true;
+    });
+}
+
+function renderFiltered() {
+    const filtered = getFiltered();
+    markerLayer.clearLayers();
+
+    filtered.forEach(f => {
+        const coords = f.geometry.coordinates;
+        if (!coords || coords.length < 2) return;
+        const [lng, lat] = coords;
+        const color = f._sourceType === 'private' ? PRIVATE_COLOR : STATE_COLOR;
+        const marker = L.circleMarker([lat, lng], {
+            radius: 6,
+            fillColor: color,
+            color: '#fff',
+            weight: 1.5,
+            fillOpacity: 0.88
+        });
+        marker.bindPopup(buildPopup(f.properties, f._sourceType), { maxWidth: 280 });
+        markerLayer.addLayer(marker);
+    });
+
+    if (filtered.length > 0) {
+        const latLngs = markerLayer.getLayers().map(m => m.getLatLng());
+        map.fitBounds(L.latLngBounds(latLngs), { padding: [40, 40], maxZoom: 14 });
+    }
+
+    updateStats(filtered);
+}
+
+// ─── STATS ────────────────────────────────────────────────────
+function updateStats(features) {
+    const amphoe = document.getElementById('amphoeSelect').value;
+    const privateCount = features.filter(f => f._sourceType === 'private').length;
+    const stateCount   = features.filter(f => f._sourceType === 'state').length;
+
+    animateNumber('totalCount',   features.length);
+    animateNumber('privateCount', privateCount);
+    animateNumber('stateCount',   stateCount);
+
+    const usageCounts = { 'อุปโภค-บริโภค': 0, 'เกษตร': 0 };
+    features.forEach(f => { usageCounts[getUsageCategory(f)]++; });
+
+    const typeList = document.getElementById('typeList');
+    if (features.length === 0) {
+        typeList.innerHTML = '<div class="empty-msg">ไม่มีข้อมูล</div>';
+    } else {
+        typeList.innerHTML = Object.entries(usageCounts).map(([type, count]) => `
+            <div class="type-row${activeTypeFilter === type ? ' active' : ''}" data-type="${type}">
+                <span class="type-name"><span class="type-dot"></span>${type}</span>
+                <span class="type-count">${count}</span>
+            </div>
+        `).join('');
+
+        typeList.querySelectorAll('.type-row').forEach(row => {
+            row.addEventListener('click', () => {
+                const type = row.dataset.type;
+                activeTypeFilter = activeTypeFilter === type ? null : type;
+                renderFiltered();
+            });
+        });
+    }
+
+    const groupKey = amphoe ? 'Tambon' : 'Amphoe';
+    const groupLabel = amphoe ? 'ตำบล' : 'อำเภอ';
+    document.getElementById('chartTitle').textContent = `จำนวนบ่อแยกตาม${groupLabel}`;
+    document.getElementById('volumeChartTitle').textContent = `ปริมาณน้ำ (ลบ.ม./วัน) แยกตาม${groupLabel}`;
+
+    const areaCounts = {};
+    const volumeCounts = {};
+    features.forEach(f => {
+        const area = f.properties[groupKey] || 'ไม่ระบุ';
+        areaCounts[area] = (areaCounts[area] || 0) + 1;
+        const qty = parseFloat(f.properties.quantity) || 0;
+        volumeCounts[area] = (volumeCounts[area] || 0) + qty;
+    });
+
+    const chartSorted = Object.entries(areaCounts).sort((a, b) => b[1] - a[1]).slice(0, 12);
+    drawChart(chartSorted.map(x => x[0]), chartSorted.map(x => x[1]));
+
+    const volumeSorted = Object.entries(volumeCounts)
+        .filter(x => x[1] > 0)
+        .sort((a, b) => b[1] - a[1])
+        .slice(0, 12);
+    drawVolumeChart(
+        volumeSorted.map(x => x[0]),
+        volumeSorted.map(x => Math.round(x[1] * 100) / 100)
+    );
+}
+
+function animateNumber(id, target) {
+    const el = document.getElementById(id);
+    const current = parseInt(el.textContent) || 0;
+    const diff = target - current;
+    if (diff === 0) return;
+    const steps = 20;
+    let step = 0;
+    const timer = setInterval(() => {
+        step++;
+        el.textContent = Math.round(current + diff * (step / steps));
+        if (step >= steps) clearInterval(timer);
+    }, 16);
+}
+
+function drawChart(labels, data) {
+    const ctx = document.getElementById('mainChart');
+    if (chartInstance) chartInstance.destroy();
+
+    chartInstance = new Chart(ctx, {
+        type: 'bar',
+        data: {
+            labels,
+            datasets: [{
+                label: 'จำนวนบ่อ',
+                data,
+                backgroundColor: '#006FBF',
+                borderColor: '#004D8C',
+                borderWidth: 0,
+                borderRadius: 5,
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: { display: false },
+                tooltip: {
+                    backgroundColor: '#1a2740',
+                    padding: 10,
+                    titleFont: { size: 13, weight: 'bold', family: 'Prompt' },
+                    bodyFont: { size: 12, family: 'Prompt' },
+                    callbacks: { label: ctx => `จำนวน: ${ctx.parsed.y} บ่อ` }
+                }
+            },
+            scales: {
+                x: {
+                    grid: { display: false },
+                    ticks: { font: { size: 10, weight: '600', family: 'Prompt' }, color: '#6b7a99', maxRotation: 45, minRotation: 30 }
+                },
+                y: {
+                    beginAtZero: true,
+                    grid: { color: '#eef1f8' },
+                    ticks: { font: { size: 10, weight: '600', family: 'Prompt' }, color: '#6b7a99', stepSize: 1 }
+                }
+            }
+        }
+    });
+}
+
+function drawVolumeChart(labels, data) {
+    const ctx = document.getElementById('volumeChart');
+    if (volumeChartInstance) volumeChartInstance.destroy();
+
+    if (labels.length === 0) {
+        volumeChartInstance = null;
+        ctx.getContext('2d').clearRect(0, 0, ctx.width, ctx.height);
+        return;
+    }
+
+    volumeChartInstance = new Chart(ctx, {
+        type: 'bar',
+        data: {
+            labels,
+            datasets: [{
+                label: 'ปริมาณน้ำ (ลบ.ม./วัน)',
+                data,
+                backgroundColor: '#0088CC',
+                borderColor: '#006FBF',
+                borderWidth: 0,
+                borderRadius: 5,
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: { display: false },
+                tooltip: {
+                    backgroundColor: '#1a2740',
+                    padding: 10,
+                    titleFont: { size: 13, weight: 'bold', family: 'Prompt' },
+                    bodyFont: { size: 12, family: 'Prompt' },
+                    callbacks: {
+                        label: ctx => `ปริมาณ: ${ctx.parsed.y.toLocaleString()} ลบ.ม./วัน`
+                    }
+                }
+            },
+            scales: {
+                x: {
+                    grid: { display: false },
+                    ticks: { font: { size: 10, weight: '600', family: 'Prompt' }, color: '#6b7a99', maxRotation: 45, minRotation: 30 }
+                },
+                y: {
+                    beginAtZero: true,
+                    grid: { color: '#eef1f8' },
+                    ticks: {
+                        font: { size: 10, weight: '600', family: 'Prompt' },
+                        color: '#6b7a99',
+                        callback: val => val >= 1000 ? (val / 1000).toFixed(1) + 'K' : val
+                    }
+                }
+            }
+        }
+    });
+}
+
+// ─── TAMBON DROPDOWN ─────────────────────────────────────────
+function updateTambonDropdown(amphoe) {
+    const sel = document.getElementById('tambonSelect');
+    sel.innerHTML = '<option value="">ทั้งหมด</option>';
+    if (amphoe && tambonsByAmphoe[amphoe]) {
+        tambonsByAmphoe[amphoe].forEach(t => {
+            const o = document.createElement('option');
+            o.value = t; o.textContent = t;
+            sel.appendChild(o);
+        });
+        sel.disabled = false;
+    } else {
+        sel.innerHTML = '<option value="">กรุณาเลือกอำเภอก่อน</option>';
+        sel.disabled = true;
+    }
+}
+
+document.getElementById('amphoeSelect').addEventListener('change', function() {
+    activeTypeFilter = null;
+    updateTambonDropdown(this.value);
+    document.getElementById('tambonSelect').value = '';
+    renderFiltered();
+});
+
+document.getElementById('tambonSelect').addEventListener('change', function() {
+    activeTypeFilter = null;
+    renderFiltered();
+});
+
+// ─── LOAD DATA ───────────────────────────────────────────────
+async function loadJSON(url, sourceType) {
+    try {
+        const res = await fetch(url);
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const data = await res.json();
+        return (data.features || []).map(f => ({ ...f, _sourceType: sourceType }));
+    } catch (e) {
+        console.warn(`ไม่สามารถโหลด ${url}:`, e.message);
+        return [];
+    }
+}
+
+async function init() {
+    const [privateFeatures, stateFeatures] = await Promise.all([
+        loadJSON('บ่อบาดาลเอกชนKPP2.json', 'private'),
+        loadJSON('บ่อบาดาลรัฐKPP2.json', 'state')
+    ]);
+
+    allFeatures = [...privateFeatures, ...stateFeatures];
+
+    allFeatures.forEach(f => {
+        const { Amphoe, Tambon } = f.properties;
+        if (Amphoe && Tambon) {
+            if (!tambonsByAmphoe[Amphoe]) tambonsByAmphoe[Amphoe] = new Set();
+            tambonsByAmphoe[Amphoe].add(Tambon);
+        }
+    });
+
+    for (const a in tambonsByAmphoe) {
+        tambonsByAmphoe[a] = Array.from(tambonsByAmphoe[a]).sort();
+    }
+
+    renderFiltered();
+}
+
+init();
+</script>
+</body>
+</html>
