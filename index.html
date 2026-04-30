@@ -453,10 +453,10 @@
     <div class="sidebar">
         <!-- TOGGLE BUTTONS -->
         <div class="source-toggle-sidebar">
-            <button class="toggle-btn private active" id="togglePrivate" onclick="toggleSource('private')">
+            <button class="toggle-btn private" id="togglePrivate" onclick="selectSource('private')">
                 <span class="dot"></span> บ่อบาดาลภาคเอกชน
             </button>
-            <button class="toggle-btn state active" id="toggleState" onclick="toggleSource('state')">
+            <button class="toggle-btn state" id="toggleState" onclick="selectSource('state')">
                 <span class="dot"></span> บ่อบาดาลภาครัฐ
             </button>
         </div>
@@ -501,7 +501,7 @@
 
         <!-- LINK -->
         <a href="https://iwasam.eng.kps.ku.ac.th/flow/itambon/water-source/" target="_blank" class="link-btn">
-            🔗 ข้อมูลแหล่งน้ำผิวดิน 32 ตำบล
+            ข้อมูลแหล่งน้ำผิวดิน 32 ตำบล
         </a>
     </div>
 </div>
@@ -533,8 +533,7 @@ let allFeatures = [];
 let tambonsByAmphoe = {};
 let chartInstance = null;
 let volumeChartInstance = null;
-let showPrivate = true;
-let showState = true;
+let activeSource = null;
 let activeTypeFilter = null;
 let markerLayer = L.layerGroup().addTo(map);
 let userLocationMarker = null;
@@ -553,7 +552,7 @@ function getUsageCategory(feature) {
 }
 
 function buildPopup(props, sourceType) {
-    const srcLabel = sourceType === 'private' ? '🏭 บ่อภาคเอกชน' : '🏛️ บ่อภาครัฐ';
+    const srcLabel = sourceType === 'private' ? 'บ่อภาคเอกชน' : 'บ่อภาครัฐ';
     const fields = [
         ['water_name', 'ชื่อ/สถานที่'],
         ['Types', 'การใช้งาน'],
@@ -570,7 +569,7 @@ function buildPopup(props, sourceType) {
 
     return `<div style="font-family:'Prompt',Arial,sans-serif;min-width:210px">
         <div style="background:#004D8C;color:white;padding:10px 14px;margin:-13px -20px 12px;border-radius:4px 4px 0 0;font-weight:700;font-size:14px">
-            💧 ข้อมูลบ่อน้ำใต้ดิน
+            ข้อมูลบ่อน้ำใต้ดิน
         </div>
         <div style="font-size:12px;color:#888;margin-bottom:8px">${srcLabel}</div>
         <table style="border-collapse:collapse;width:100%">${rows || '<tr><td colspan="2" style="color:#aaa;font-size:12px">ไม่มีข้อมูลเพิ่มเติม</td></tr>'}</table>
@@ -621,12 +620,12 @@ function toggleMyLocation() {
 
             userLocationMarker.bindPopup(`
                 <div style="font-family:'Prompt',sans-serif;min-width:200px;padding:0;">
-                    <div style="background:#1565C0;color:white;padding:0px 14px;margin:-13px -20px 12px;border-radius:4px 4px 0 0;font-weight:700;font-size:14px;letter-spacing:0.3px;">
+                    <div style="background:#006FBF;color:white;padding:8px 14px;margin:-13px -20px 12px;border-radius:4px 4px 0 0;font-weight:700;font-size:14px;letter-spacing:0.3px;">
                         ตำแหน่งของคุณ
                     </div>
                     <div style="padding:0 2px;">
-                        <div style="font-size:13px;color:#666;margin-bottom:5px;">ละติจูด: <strong>${userLocation.lat.toFixed(6)}</strong></div>
-                        <div style="font-size:13px;color:#666;margin-bottom:12px;">ลองจิจูด: <strong>${userLocation.lng.toFixed(6)}</strong></div>
+                        <div style="font-size:13px;color:#666;margin-bottom:5px;"><strong>ละติจูด:</strong> ${userLocation.lat.toFixed(6)}</div>
+                        <div style="font-size:13px;color:#666;margin-bottom:12px;"><strong>ลองจิจูด:</strong> ${userLocation.lng.toFixed(6)}</div>
                         <div style="background:#E3F2FD;border-left:3px solid #006FBF;border-radius:4px;padding:8px 12px;">
                             <div style="font-size:12px;color:#555;margin-bottom:6px;">บ่อน้ำบาดาลในรัศมี 1 กม.</div>
                             <div style="display:flex;align-items:center;gap:8px;">
@@ -665,15 +664,11 @@ function toggleMyLocation() {
     );
 }
 
-// ─── TOGGLE SOURCE ───────────────────────────────────────────
-function toggleSource(type) {
-    if (type === 'private') {
-        showPrivate = !showPrivate;
-        document.getElementById('togglePrivate').classList.toggle('active', showPrivate);
-    } else {
-        showState = !showState;
-        document.getElementById('toggleState').classList.toggle('active', showState);
-    }
+// ─── SELECT SOURCE ───────────────────────────────────────────
+function selectSource(type) {
+    activeSource = activeSource === type ? null : type;
+    document.getElementById('togglePrivate').classList.toggle('active', activeSource === 'private');
+    document.getElementById('toggleState').classList.toggle('active', activeSource === 'state');
     renderFiltered();
 }
 
@@ -684,8 +679,7 @@ function getFiltered() {
 
     return allFeatures.filter(f => {
         const p = f.properties;
-        if (f._sourceType === 'private' && !showPrivate) return false;
-        if (f._sourceType === 'state'   && !showState)   return false;
+        if (activeSource && f._sourceType !== activeSource) return false;
         if (tambon && p.Tambon  !== tambon)  return false;
         if (amphoe && !tambon && p.Amphoe !== amphoe) return false;
         if (activeTypeFilter && getUsageCategory(f) !== activeTypeFilter) return false;
