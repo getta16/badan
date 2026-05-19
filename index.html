@@ -183,6 +183,8 @@
         .stat-card.private-card::before { background: var(--private); }
         .stat-card.state-card::before { background: var(--state); }
 
+        .vol-row .stat-number { font-size: 20px; }
+
         .stat-number {
             font-size: 30px;
             font-weight: 800;
@@ -383,6 +385,42 @@
 
         .empty-msg { text-align: center; color: var(--text-muted); font-size: 13px; padding: 16px 0; }
 
+        .volume-summary {
+            margin-top: 12px;
+            padding-top: 12px;
+            border-top: 1px solid var(--border);
+            display: flex;
+            gap: 8px;
+        }
+
+        .vol-item {
+            flex: 1;
+            text-align: center;
+            padding: 8px 6px;
+            border-radius: 8px;
+        }
+
+        .vol-item.total  { background: #EBF4FF; }
+        .vol-item.prv    { background: #FFF3EC; }
+        .vol-item.sta    { background: #F3EEFF; }
+
+        .vol-val {
+            font-size: 15px;
+            font-weight: 800;
+            line-height: 1.2;
+        }
+
+        .vol-item.total .vol-val { color: var(--primary); }
+        .vol-item.prv   .vol-val { color: var(--private); }
+        .vol-item.sta   .vol-val { color: var(--state); }
+
+        .vol-label {
+            font-size: 10px;
+            color: var(--text-muted);
+            font-weight: 600;
+            margin-top: 2px;
+        }
+
         .leaflet-control-layers {
             border-radius: 10px !important;
             border: none !important;
@@ -452,12 +490,13 @@
 
     <div class="sidebar">
         <!-- TOGGLE BUTTONS -->
+
         <div class="source-toggle-sidebar">
-            <button class="toggle-btn private" id="togglePrivate" onclick="selectSource('private')">
-                <span class="dot"></span> บ่อบาดาลภาคเอกชน
-            </button>
             <button class="toggle-btn state" id="toggleState" onclick="selectSource('state')">
                 <span class="dot"></span> บ่อบาดาลภาครัฐ
+            </button>
+            <button class="toggle-btn private" id="togglePrivate" onclick="selectSource('private')">
+                <span class="dot"></span> บ่อบาดาลภาคเอกชน
             </button>
         </div>
 
@@ -467,13 +506,29 @@
                 <div class="stat-number" id="totalCount">0</div>
                 <div class="stat-sublabel">บ่อบาดาลทั้งหมด</div>
             </div>
+            <div class="stat-card state-card">
+                <div class="stat-number" id="stateCount">0</div>
+                <div class="stat-sublabel">บ่อบาดาลภาครัฐ</div>
+            </div>
             <div class="stat-card private-card">
                 <div class="stat-number" id="privateCount">0</div>
                 <div class="stat-sublabel">บ่อบาดาลภาคเอกชน</div>
             </div>
+        </div>
+
+        <!-- VOLUME STAT ROW -->
+        <div class="stat-row vol-row">
+            <div class="stat-card total">
+                <div class="stat-number" id="totalVolume">0</div>
+                <div class="stat-sublabel">ปริมาณน้ำรวม<br>(ลบ.ม./วัน)</div>
+            </div>
             <div class="stat-card state-card">
-                <div class="stat-number" id="stateCount">0</div>
-                <div class="stat-sublabel">บ่อบาดาลภาครัฐ</div>
+                <div class="stat-number" id="stateVolume">0</div>
+                <div class="stat-sublabel">ปริมาณน้ำภาครัฐ<br>(ลบ.ม./วัน)</div>
+            </div>
+            <div class="stat-card private-card">
+                <div class="stat-number" id="privateVolume">0</div>
+                <div class="stat-sublabel">ปริมาณน้ำภาคเอกชน<br>(ลบ.ม./วัน)</div>
             </div>
         </div>
 
@@ -720,10 +775,19 @@ function updateStats(features) {
     const amphoe = document.getElementById('amphoeSelect').value;
     const privateCount = features.filter(f => f._sourceType === 'private').length;
     const stateCount   = features.filter(f => f._sourceType === 'state').length;
+    
 
     animateNumber('totalCount',   features.length);
     animateNumber('privateCount', privateCount);
     animateNumber('stateCount',   stateCount);
+
+    const totalVolume   = features.reduce((s, f) => s + (parseFloat(f.properties.quantity) || 0), 0);
+    const privateVolume = features.filter(f => f._sourceType === 'private').reduce((s, f) => s + (parseFloat(f.properties.quantity) || 0), 0);
+    const stateVolume   = features.filter(f => f._sourceType === 'state').reduce((s, f) => s + (parseFloat(f.properties.quantity) || 0), 0);
+    const fmt = v => v.toLocaleString('en-US', { maximumFractionDigits: 2 });
+    document.getElementById('totalVolume').textContent   = fmt(totalVolume);
+    document.getElementById('privateVolume').textContent = fmt(privateVolume);
+    document.getElementById('stateVolume').textContent   = fmt(stateVolume);
 
     const usageCounts = { 'อุปโภค-บริโภค': 0, 'เกษตร': 0 };
     features.forEach(f => { usageCounts[getUsageCategory(f)]++; });
@@ -735,7 +799,7 @@ function updateStats(features) {
         typeList.innerHTML = Object.entries(usageCounts).map(([type, count]) => `
             <div class="type-row${activeTypeFilter === type ? ' active' : ''}" data-type="${type}">
                 <span class="type-name"><span class="type-dot"></span>${type}</span>
-                <span class="type-count">${count}</span>
+                <span class="type-count">${count.toLocaleString('en-US')}</span>
             </div>
         `).join('');
 
@@ -777,14 +841,14 @@ function updateStats(features) {
 
 function animateNumber(id, target) {
     const el = document.getElementById(id);
-    const current = parseInt(el.textContent) || 0;
+    const current = parseInt(el.textContent.replace(/,/g, '')) || 0;
     const diff = target - current;
     if (diff === 0) return;
     const steps = 20;
     let step = 0;
     const timer = setInterval(() => {
         step++;
-        el.textContent = Math.round(current + diff * (step / steps));
+        el.textContent = Math.round(current + diff * (step / steps)).toLocaleString('en-US');
         if (step >= steps) clearInterval(timer);
     }, 16);
 }
@@ -816,7 +880,7 @@ function drawChart(labels, data) {
                     padding: 10,
                     titleFont: { size: 13, weight: 'bold', family: 'Prompt' },
                     bodyFont: { size: 12, family: 'Prompt' },
-                    callbacks: { label: ctx => `จำนวน: ${ctx.parsed.y} บ่อ` }
+                    callbacks: { label: ctx => `จำนวน: ${ctx.parsed.y.toLocaleString('en-US')} บ่อ` }
                 }
             },
             scales: {
@@ -883,7 +947,7 @@ function drawVolumeChart(labels, data) {
                     ticks: {
                         font: { size: 10, weight: '600', family: 'Prompt' },
                         color: '#6b7a99',
-                        callback: val => val >= 1000 ? (val / 1000).toFixed(1) + 'K' : val
+                        callback: val => val >= 1000 ? val.toLocaleString('en-US') : val
                     }
                 }
             }
